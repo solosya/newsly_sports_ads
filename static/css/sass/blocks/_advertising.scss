@@ -1,0 +1,21 @@
+.advertising {
+
+    &.ad-header-top {
+        width: 100%;
+        padding-top: 10px;
+        padding-bottom: 10px;
+
+        >div, >div>div>iframe {
+            margin: 0 auto;
+            height:250px;
+            width:970px;
+            background:gray;
+        }
+    }    
+    .add-text {
+        color: #6c6c6c;
+        font-size: .8em;
+    }
+
+
+}
