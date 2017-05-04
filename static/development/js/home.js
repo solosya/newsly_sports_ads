@@ -20,7 +20,7 @@ HomeController.Listing = (function ($) {
                     : $(obj).attr('title', 'Pin Article');
                (status == 1) 
                     ? $(obj).find('span').first().html('Un-Pin') 
-                    : $(obj).find('span').first().html('Pin');
+                    : $(obj).find('span').first().html('Pin');        
             }
         });
     };
@@ -28,23 +28,76 @@ HomeController.Listing = (function ($) {
     var bindDeleteHideArticle = function(){
         $('button.HideBlogArticle').Ajax_deleteArticle({
             onSuccess: function(data, obj){
+                var sectionPostsCount = $(obj).closest('.section__content').find('.card__news').length;
+                if(sectionPostsCount <= 1) {
+                    $(obj).closest('.section__content').addClass('hide');
+                }
                 $(obj).closest('.card').parent('div').remove();
+                var postsCount = $('body').find('.card__news').length;
+                if(postsCount <= 0) {
+                    $('.NoArticlesMsg').removeClass('hide');
+                }
+            }
+        });
+    };
+    
+    var bindSocialUpdatePost = function () {
+        $('.editSocialPost').on('click', function (e) {
+            e.preventDefault();
+            var elem = $(this);
+            var url = elem.data('url');
+            var popup = window.open(url, '_blank', 'toolbar=no,scrollbars=yes,resizable=false,width=360,height=450');
+            popup.focus();
+
+            var intervalId = setInterval(function () {
+                if (popup.closed) {
+                    clearInterval(intervalId);
+                    var socialId = elem.parents('a').data('id');
+                    if ($('#updateSocial' + socialId).data('update') == '1') {
+                        $().General_ShowNotification({message: 'Social Post(s) updated successfully.'});
+                    }
+                }
+            }, 50);
+
+            return;
+        });
+    };
+    
+    var bindSocialShareArticle = function () {
+        $('.shareIcons').SocialShare({
+            onLoad: function (obj) {
+                var title = obj.parents('div.article').find('.card__news-category').text();
+                var url = obj.parents('div.article').find('a').attr('href');
+                var content = obj.parents('div.article').find('.card__news-description').text();
+                $('.rrssb-buttons').rrssb({
+                    title: title,
+                    url: url,
+                    description: content
+                });
+                setTimeout(function () {
+                    rrssbInit();
+                }, 10);
             }
         });
     };
     
     var attachEvents = function () {
         if(_appJsConfig.isUserLoggedIn === 1 && _appJsConfig.userHasBlogAccess === 1) {
-            //Bind pin/unpin article event
-            bindPinUnpinArticle();
-
-            //Bind delete social article & hide system article
-            bindDeleteHideArticle();
+            initSwap();
         }
         
         function initSwap() {
             initDroppable();
             initDraggable();
+            
+            //Bind pin/unpin article event
+            bindPinUnpinArticle();
+
+            //Bind delete social article & hide system article
+            bindDeleteHideArticle();
+            
+            //Bind update social article
+            bindSocialUpdatePost();
             
             //Following will called on page load and also on load more articles
             $(".articleMenu, .socialMenu").delay(2000).fadeIn(500);
@@ -59,7 +112,6 @@ HomeController.Listing = (function ($) {
                 scrollSensitivity: 100,
                 cursorAt: { left: 150, top: 50 },
                 appendTo:'body',
-//                containment: false,
                 start: function( event, ui ) {
                     ui.helper.attr('class', '');
                     var postImage = $(ui.helper).data('article-image');
@@ -83,10 +135,10 @@ HomeController.Listing = (function ($) {
                     var sourceObj = $(ui.draggable);
                     var $this = $(this);
                     //get positions
-                    var sourcePosition = $(sourceObj).data('position');
+                    var sourcePosition = sourceObj.data('position');
                     var sourcePostId = parseInt($(sourceObj).data('id'));
                     var sourceIsSocial = parseInt($(sourceObj).data('social'));
-                    var destinationPosition = $($this).data('position');
+                    var destinationPosition = $this.data('position');
                     var destinationPostId = parseInt($($this).data('id'));
                     var destinationIsSocial = parseInt($($this).data('social'));
                     
@@ -97,8 +149,23 @@ HomeController.Listing = (function ($) {
                     $(this).remove();
                     
                     //swap positions
-                    $(sourceObj).data('position', destinationPosition);
-                    $(this).data('position', sourcePosition);
+                    if(sourceIsSocial == 1) {
+                        $('#Social'+sourcePostId).data('position', destinationPosition);
+                        $('#Social'+sourcePostId).find('.PinArticleBtn').data('position', destinationPosition);
+                    }
+                    else {
+                        $('#Article'+sourcePostId).data('position', destinationPosition);
+                        $('#Article'+sourcePostId).find('.PinArticleBtn').data('position', destinationPosition);
+                    }
+
+                    if(destinationIsSocial == 1) {
+                        $('#Social'+destinationPostId).data('position', sourcePosition);
+                         $('#Social'+destinationPostId).find('.PinArticleBtn').data('position', sourcePosition);
+                    }
+                    else {
+                        $('#Article'+destinationPostId).data('position', sourcePosition);
+                         $('#Article'+destinationPostId).find('.PinArticleBtn').data('position', sourcePosition);
+                    }
                     
                     var csrfToken = $('meta[name="csrf-token"]').attr("content");
                     var postData = {
@@ -120,9 +187,8 @@ HomeController.Listing = (function ($) {
                         dataType: 'json',
                         success: function(data){
                             if(data.success) {
-                                $.fn.General_ShowNotification({message: "Articles swapped successfully"});
+                                $.fn.General_ShowNotification({message: "Article(s) swapped successfully."});
                             }
-                            
                             $(".card p, .card h1").dotdotdot();
                             initSwap();
                         },
@@ -134,17 +200,14 @@ HomeController.Listing = (function ($) {
                         complete: function(jqXHR, textStatus) {
                         }
                     });
-
                 }
             }); 
         }
 
-        if(_appJsConfig.isUserLoggedIn === 1 && _appJsConfig.userHasBlogAccess === 1) {
-            initSwap();
-        }
         
         $('.loadMoreArticles').on('click', function(e){
             e.preventDefault();
+
             var btnObj = $(this);
             $.fn.Ajax_LoadBlogArticles({
                 onSuccess: function(data, textStatus, jqXHR){
@@ -194,12 +257,6 @@ HomeController.Listing = (function ($) {
                             effect: "fadeIn"
                         });
                         if (_appJsConfig.isUserLoggedIn === 1 && _appJsConfig.userHasBlogAccess === 1) {
-                            //Bind pin/unpin article event
-                            bindPinUnpinArticle();
-                            //Bind delete social article & hide system article
-                            bindDeleteHideArticle();
-                            bindSocialUpdatePost();
-
                             initSwap();
                         }
                     }
@@ -208,52 +265,11 @@ HomeController.Listing = (function ($) {
                 beforeSend: function(jqXHR, settings){
                     $(btnObj).html("Please wait...");
                 },
-                onComplete: function(jqXHR, textStatus){
-                    $(btnObj).html("Load More");
+                onComplete: function(jqXHR, textStatus) {
+                    $(btnObj).html("Load more <i class='fa fa-refresh'></i>");
                 }
             });
         });
-        
-        var bindSocialShareArticle = function () {
-            $('.shareIcons').SocialShare({
-                onLoad: function (obj) {
-                    var title = obj.parents('div.article').find('.card__news-category').text();
-                    var url = obj.parents('div.article').find('a').attr('href');
-                    var content = obj.parents('div.article').find('.card__news-description').text();
-                    $('.rrssb-buttons').rrssb({
-                        title: title,
-                        url: url,
-                        description: content
-                    });
-                    setTimeout(function () {
-                        rrssbInit();
-                    }, 10);
-                }
-            });
-        };
-        
-        var bindSocialUpdatePost = function () {
-            $('.editSocialPost').on('click', function (e) {
-                e.preventDefault();
-                var elem = $(this);
-                var url = elem.data('url');
-                var popup = window.open(url, '_blank', 'toolbar=no,scrollbars=yes,resizable=false,width=360,height=450');
-                popup.focus();
-
-                var intervalId = setInterval(function () {
-                    if (popup.closed) {
-                        clearInterval(intervalId);
-                        var socialId = elem.parents('a').data('id');
-                        if ($('#updateSocial' + socialId).data('update') == '1') {
-                            $().General_ShowNotification({message: 'Social Post(s) updated successfully.'});
-                        }
-                    }
-                }, 50);
-
-                return;
-            });
-        };
-
     };
     return {
         init: function () {

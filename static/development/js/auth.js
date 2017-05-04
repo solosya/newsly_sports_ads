@@ -3,7 +3,7 @@ var AuthController = (function ($) {
         loginOrSignup: function () {
             AuthController.LoginOrSignup.init();
         },
-        socialSingup: function () {
+        socialSignup: function () {
             AuthController.SocialSignup.init();
         },
         forgotPassword: function () {
@@ -41,7 +41,7 @@ AuthController.LoginOrSignup = (function ($) {
 AuthController.SocialSignup = (function ($) {
 
     var attachEvents = function () {
-        $("#signupForm").validateSoicalSignupForm();
+        $("#signupForm").validateSocialSignupForm();
     };
 
     return {
